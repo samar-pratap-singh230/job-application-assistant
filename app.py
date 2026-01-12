@@ -6,117 +6,107 @@ from dotenv import load_dotenv
 import os
 import time
 
-# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
-
-# Set secret key for Flask
-app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
+app.secret_key = os.getenv('SECRET_KEY', 'secret-key')
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/health')
-def health():
-    return jsonify({'status': 'healthy'}), 200
-
 @app.route('/search-jobs', methods=['POST'])
 def search_jobs():
     try:
-        # Get form data
         data = request.json
-        role = data.get('role', 'Software Developer')
-        location = data.get('location', 'Remote')
-        experience = data.get('experience', 'Entry')
-        keywords = data.get('keywords', 'Python, AI')
         
         job_criteria = {
-            'role': role,
-            'location': location,
-            'experience': experience,
-            'keywords': keywords
+            'role': data.get('role', 'Software Developer'),
+            'location': data.get('location', 'Remote'),
+            'experience': data.get('experience', 'Mid'),
+            'keywords': data.get('keywords', 'Python')
         }
         
-        # Initialize agents and tasks
-        agents = JobApplicationAgents()
-        tasks = JobApplicationTasks()
-        
-        # Create agents
-        job_researcher = agents.job_researcher_agent()
-        resume_strategist = agents.resume_strategist_agent()
-        
-        # Create tasks
-        research_task = tasks.research_jobs_task(job_researcher, job_criteria)
-        
-        demo_job_description = f"Looking for a {role} with skills in {keywords}"
-        demo_resume = f"{experience} level professional with relevant experience"
-        
-        tailor_resume_task = tasks.tailor_resume_task(
-            resume_strategist,
-            demo_job_description,
-            demo_resume
+        agents_class = JobApplicationAgents()
+        tasks_class = JobApplicationTasks()
+
+        # Create Agents (Added Interview Agent)
+        researcher = agents_class.job_researcher_agent()
+        strategist = agents_class.resume_strategist_agent()
+        writer = agents_class.cover_letter_writer_agent()
+        interview_agent = agents_class.interview_prep_agent() # NEW
+
+        # Create Tasks
+        task_research = tasks_class.research_jobs_task(researcher, job_criteria)
+
+        task_resume = tasks_class.tailor_resume_task(
+            strategist, 
+            f"Candidate with {job_criteria['experience']} experience"
         )
-        
-        # Create and run crew
+        task_resume.context = [task_research]
+
+        task_letter = tasks_class.write_cover_letter_task(
+            writer,
+            f"Candidate with {job_criteria['experience']} experience"
+        )
+        task_letter.context = [task_research, task_resume]
+
+        # NEW: Interview Task
+        task_interview = tasks_class.prepare_interview_task(
+            interview_agent,
+            "The specific company selected in the Resume Strategy task",
+            "The job description identified in the Research task"
+        )
+        task_interview.context = [task_resume, task_research]
+
+        # Create Crew (Added new agent/task)
         crew = Crew(
-            agents=[job_researcher, resume_strategist],
-            tasks=[research_task, tailor_resume_task],
+            agents=[researcher, strategist, writer, interview_agent],
+            tasks=[task_research, task_resume, task_letter, task_interview],
             process=Process.sequential,
-            verbose=False
+            verbose=True
         )
         
-        # Run with rate limit handling
-        max_retries = 3
-        retry_count = 0
+        result = crew.kickoff()
         
-        while retry_count < max_retries:
-            try:
-                result = crew.kickoff()
-                break
-            except Exception as e:
-                if "rate_limit" in str(e).lower():
-                    retry_count += 1
-                    if retry_count < max_retries:
-                        time.sleep(15)
-                        continue
-                    else:
-                        return jsonify({
-                            'success': False,
-                            'error': 'Rate limit exceeded. Please try again in a minute.'
-                        }), 429
-                else:
-                    raise
-        
-        # Save results to file in /tmp (Render's writable directory)
+        # Save to file (Updated Report Format)
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         filename = f"results_{timestamp}.txt"
-        filepath = os.path.join('/tmp', filename)
+        save_path = os.path.join('static', filename) if os.path.exists('static') else filename
         
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(str(result))
+        full_report = f"""
+========================================
+🚀 FINAL REPORT
+========================================
+
+--- 🕵️ JOB RESEARCHER REPORT ---
+{task_research.output}
+
+--- 📝 RESUME STRATEGY REPORT ---
+{task_resume.output}
+
+--- ✉️ COVER LETTER ---
+{task_letter.output}
+
+--- 🎤 INTERVIEW PREPARATION ---
+{task_interview.output}
+        """
         
-        return jsonify({
-            'success': True,
-            'result': str(result),
-            'filename': filename
-        })
+        with open(save_path, "w", encoding="utf-8") as f:
+            f.write(full_report)
+        
+        # Return the full report to the web UI
+        return jsonify({'success': True, 'result': full_report, 'filename': filename})
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        print(f"Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/download/<filename>')
 def download_file(filename):
-    try:
-        filepath = os.path.join('/tmp', filename)
-        return send_file(filepath, as_attachment=True)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 404
+    path = os.path.join('static', filename) if os.path.exists('static') else filename
+    return send_file(path, as_attachment=True)
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(port=5000, debug=True)
+
