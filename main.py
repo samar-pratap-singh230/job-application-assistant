@@ -11,20 +11,13 @@ load_dotenv()
 def main():
     try:
         # Check for API keys
-        groq_key = os.getenv("GROQ_API_KEY")
-        serper_key = os.getenv("SERPER_API_KEY")
-        
-        if not groq_key:
-            print("❌ ERROR: GROQ_API_KEY not found in .env file")
+        if not os.getenv("GROQ_API_KEY") or not os.getenv("SERPER_API_KEY"):
+            print("❌ ERROR: API keys not found in .env file")
             sys.exit(1)
-        
-        if not serper_key:
-            print("❌ ERROR: SERPER_API_KEY not found in .env file")
-            sys.exit(1)
-        
+            
         print("✅ API keys loaded successfully")
         print("=" * 60)
-        print("🚀 Job Application Assistant")
+        print("🚀 Job Application Assistant (CLI Mode)")
         print("=" * 60)
         
         # Get user input
@@ -41,56 +34,97 @@ def main():
         print("🤖 Initializing AI Agents...")
         print("=" * 60 + "\n")
         
-        # Initialize agents and tasks
-        agents = JobApplicationAgents()
-        tasks = JobApplicationTasks()
+        # 1. Initialize Classes
+        agents_class = JobApplicationAgents()
+        tasks_class = JobApplicationTasks()
         
-        # Create agents
+        # 2. Create Agents
         print("Creating Job Researcher Agent...")
-        job_researcher = agents.job_researcher_agent()
+        job_researcher = agents_class.job_researcher_agent()
         
         print("Creating Resume Strategist Agent...")
-        resume_strategist = agents.resume_strategist_agent()
+        resume_strategist = agents_class.resume_strategist_agent()
+
+        print("Creating Cover Letter Agent...")
+        cover_letter_agent = agents_class.cover_letter_writer_agent()
         
-        # Create tasks
+        print("Creating Interview Coach Agent...") # <--- NEW
+        interview_agent = agents_class.interview_prep_agent()
+        
+        # 3. Create Tasks
         print("Creating research task...")
-        research_task = tasks.research_jobs_task(job_researcher, job_criteria)
+        research_task = tasks_class.research_jobs_task(job_researcher, job_criteria)
         
-        # For demo purposes, we'll use placeholder data
-        demo_job_description = "Looking for a Python developer with AI/ML experience"
-        demo_resume = "Software developer with 3 years of Python experience"
+        demo_resume = f"A {job_criteria['experience']} level professional with skills in {job_criteria['keywords']}"
         
         print("Creating resume tailoring task...")
-        tailor_resume_task = tasks.tailor_resume_task(
+        tailor_resume_task = tasks_class.tailor_resume_task(
             resume_strategist,
-            demo_job_description,
             demo_resume
         )
+        tailor_resume_task.context = [research_task]
+
+        print("Creating cover letter task...")
+        cover_letter_task = tasks_class.write_cover_letter_task(
+            cover_letter_agent,
+            f"Candidate with {job_criteria['experience']} experience"
+        )
+        cover_letter_task.context = [research_task, tailor_resume_task]
         
-        # Create the crew
+        # --- NEW INTERVIEW TASK ---
+        print("Creating interview prep task...")
+        interview_task = tasks_class.prepare_interview_task(
+            interview_agent,
+            "The specific company selected in the Resume Strategy task",
+            "The job description identified in the Research task"
+        )
+        # We link it to the resume task so it knows which job was picked
+        interview_task.context = [tailor_resume_task, research_task]
+        
+        # 4. Create the Crew (Add the new agent and task!)
         print("Assembling crew...")
         crew = Crew(
-            agents=[job_researcher, resume_strategist],
-            tasks=[research_task, tailor_resume_task],
+            agents=[job_researcher, resume_strategist, cover_letter_agent, interview_agent],
+            tasks=[research_task, tailor_resume_task, cover_letter_task, interview_task],
             process=Process.sequential,
             verbose=True
         )
         
-        # Run the crew
+        # 5. Run the crew
         print("\n🎯 Starting job search process...\n")
+        
         result = crew.kickoff()
         
-        # Display results
+        # Display results in terminal
         print("\n" + "=" * 60)
         print("✅ RESULTS")
         print("=" * 60)
         print(result)
         
-        # Save results to file
+        # --- SAVING LOGIC (Updated to include Interview Output) ---
+        full_report = f"""
+========================================
+🚀 FINAL REPORT
+========================================
+
+--- 🕵️ JOB RESEARCHER REPORT ---
+{research_task.output}
+
+--- 📝 RESUME STRATEGY REPORT ---
+{tailor_resume_task.output}
+
+--- ✉️ COVER LETTER ---
+{cover_letter_task.output}
+
+--- 🎤 INTERVIEW PREPARATION ---
+{interview_task.output}
+        """
+
+        # Save to file
         with open("job_search_results.txt", "w", encoding="utf-8") as f:
-            f.write(str(result))
-        
-        print("\n💾 Results saved to 'job_search_results.txt'")
+            f.write(full_report)
+            
+        print("\n💾 Full Report saved to 'job_search_results.txt'")
         print("\n" + "=" * 60)
         print("🎉 Job Application Assistant Complete!")
         print("=" * 60)
