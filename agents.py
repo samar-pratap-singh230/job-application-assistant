@@ -43,15 +43,6 @@ class JobApplicationAgents:
             verbose=True
         )
     
-    def application_tracker_agent(self):
-        return Agent(
-            role='Application Organization Specialist',
-            goal='Track job applications and deadlines',
-            backstory='You are highly organized.',
-            llm=llm,
-            verbose=True
-        )
-    
     def interview_prep_agent(self):
         return Agent(
             role='Interview Preparation Coach',
