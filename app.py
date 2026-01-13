@@ -76,19 +76,19 @@ def search_jobs():
         
         full_report = f"""
 ========================================
-🚀 FINAL REPORT
+FINAL REPORT
 ========================================
 
---- 🕵️ JOB RESEARCHER REPORT ---
+--- (1) JOB RESEARCHER REPORT ---
 {task_research.output}
 
---- 📝 RESUME STRATEGY REPORT ---
+--- (2) RESUME STRATEGY REPORT ---
 {task_resume.output}
 
---- ✉️ COVER LETTER ---
+--- (3) COVER LETTER ---
 {task_letter.output}
 
---- 🎤 INTERVIEW PREPARATION ---
+--- (4) INTERVIEW PREPARATION ---
 {task_interview.output}
         """
         
@@ -109,4 +109,5 @@ def download_file(filename):
 
 if __name__ == '__main__':
     app.run(port=5000, debug=True)
+
 
