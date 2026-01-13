@@ -12,16 +12,16 @@ def main():
     try:
         # Check for API keys
         if not os.getenv("GROQ_API_KEY") or not os.getenv("SERPER_API_KEY"):
-            print("❌ ERROR: API keys not found in .env file")
+            print("ERROR: API keys not found in .env file")
             sys.exit(1)
             
-        print("✅ API keys loaded successfully")
+        print("API keys loaded successfully")
         print("=" * 60)
-        print("🚀 Job Application Assistant (CLI Mode)")
+        print("Job Application Assistant")
         print("=" * 60)
         
         # Get user input
-        print("\n📋 Let's gather your job search criteria...\n")
+        print("\nLet's gather your job search criteria...\n")
         
         job_criteria = {
             'role': input("What role are you looking for? (e.g., Software Developer): ").strip() or "Software Developer",
@@ -31,7 +31,7 @@ def main():
         }
         
         print("\n" + "=" * 60)
-        print("🤖 Initializing AI Agents...")
+        print("Initializing AI Agents...")
         print("=" * 60 + "\n")
         
         # 1. Initialize Classes
@@ -91,32 +91,32 @@ def main():
         )
         
         # 5. Run the crew
-        print("\n🎯 Starting job search process...\n")
+        print("\nStarting job search process...\n")
         
         result = crew.kickoff()
         
         # Display results in terminal
         print("\n" + "=" * 60)
-        print("✅ RESULTS")
+        print("RESULTS")
         print("=" * 60)
         print(result)
         
         # --- SAVING LOGIC (Updated to include Interview Output) ---
         full_report = f"""
 ========================================
-🚀 FINAL REPORT
+FINAL REPORT
 ========================================
 
---- 🕵️ JOB RESEARCHER REPORT ---
+--- (1) JOB RESEARCHER REPORT ---
 {research_task.output}
 
---- 📝 RESUME STRATEGY REPORT ---
+--- (2) RESUME STRATEGY REPORT ---
 {tailor_resume_task.output}
 
---- ✉️ COVER LETTER ---
+--- (3) COVER LETTER ---
 {cover_letter_task.output}
 
---- 🎤 INTERVIEW PREPARATION ---
+--- (4) INTERVIEW PREPARATION ---
 {interview_task.output}
         """
 
@@ -124,13 +124,13 @@ def main():
         with open("job_search_results.txt", "w", encoding="utf-8") as f:
             f.write(full_report)
             
-        print("\n💾 Full Report saved to 'job_search_results.txt'")
+        print("\nFull Report saved to 'job_search_results.txt'")
         print("\n" + "=" * 60)
-        print("🎉 Job Application Assistant Complete!")
+        print("Job Application Assistant Complete!")
         print("=" * 60)
         
     except Exception as e:
-        print(f"\n❌ ERROR occurred: {type(e).__name__}")
+        print(f"\nERROR occurred: {type(e).__name__}")
         print(f"Error message: {str(e)}")
         import traceback
         print("\nFull traceback:")
@@ -138,3 +138,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
